@@ -1,0 +1,2 @@
+model_checkpoint_path: "weights_MaskModel_x_5"
+all_model_checkpoint_paths: "weights_MaskModel_x_5"
