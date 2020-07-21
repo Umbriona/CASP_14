@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.regularizers import L1L2
 from tensorflow.keras.layers import LSTM, Dense, Flatten, Input, Dropout, BatchNormalization, Concatenate, Conv1D, MaxPool1D, Dot, Layer, Embedding
-from utils.layers import Conv1DTranspose, UNetModule
+from utils.layers import Conv1DTranspose, UNetModule, UNetModule_res, UNetModule_ins, Angularization
 
 VOCAB_SIZE = 22
 
@@ -133,17 +133,50 @@ def u_net_module_hp(hp):
 def u_net(p):
     
     reg = L1L2(l1 = p['l1'][-1], l2 = p['l2'][-1])   
-    inp = Input(shape=(p['max_seq_len'],21))
+    inp = Input(shape=(p['max_seq_len']))
     x = Embedding(VOCAB_SIZE, p['emb_size'])(inp)
-    x = UNetModule(p)(inp)
-    out = Conv1D(p['num_classes'], p['kernel_size'][-1], activation='softmax', padding='same',
+    x = UNetModule(p)(x)
+    out = Conv1D(p['num_classes'], p['kernel_size'][-1],  activation=p['output_activation'], padding='same',
                  kernel_regularizer = reg, bias_regularizer = reg)(x)
 
-    model = Model(inputs = inp, outputs = out)
-    cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)# , sample_weight = w)
-    add = tf.keras.optimizers.Adam(learning_rate=p['learning_rate'],name='Adam')
-    model.compile(optimizer = add, loss = cce, metrics=['accuracy'], sample_weight_mode="temporal") 
+    model = Model(inputs = inp, outputs = out)    
+    return model
+
+def res_u_net(p):
     
+    reg = L1L2(l1 = p['l1'][-1], l2 = p['l2'][-1])   
+    inp = Input(shape=(p['max_seq_len']), name='inp1')
+    x_o = Embedding(VOCAB_SIZE, p['emb_size'])(inp)
+    x = BatchNormalization()(x_o)
+    x = UNetModule_res(p)(x)
+    out = Conv1D(p['num_classes'], p['kernel_size'][-1],  activation=p['output_activation'], padding='same',
+                 kernel_regularizer = reg, name='out1')(x)
+
+    model = Model(inputs = inp, outputs = [out, x_o]) 
+    return model
+
+def res_u_net_tor(p):
+    
+    reg = L1L2(l1 = p['l1'][-1], l2 = p['l2'][-1])   
+    inp = Input(shape=(p['max_seq_len'],p['features']), name='inp2')
+    x = UNetModule_res(p)(inp)
+    o = Conv1D(p['num_classes'], p['kernel_size'][-1],  activation=p['output_activation'], padding='same',
+                 kernel_regularizer = reg, name= 'out2')(x)
+    out_ang = Angularization(size_alphabet=p['num_classes'])(o)
+    model = Model(inputs = inp, outputs = out_ang) 
+    return model
+
+def ins_u_net(p):
+    
+    reg = L1L2(l1 = p['l1'][-1], l2 = p['l2'][-1])   
+    inp = Input(shape=(p['max_seq_len']))
+    x = Embedding(VOCAB_SIZE, p['emb_size'])(inp)
+    x = BatchNormalization()(x)
+    x = UNetModule_ins(p)(x)
+    out = Conv1D(p['num_classes'], p['kernel_size'][-1], activation=p['output_activation'], padding='same',
+                 kernel_regularizer = reg)(x)
+
+    model = Model(inputs = inp, outputs = out) 
     return model
 
 def u_net_module(p):
