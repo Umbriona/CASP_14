@@ -1,1 +1,6 @@
-Weights_MaskModel.*
+/Weights_MaskModel
+/Experiments
+/PDB
+/PML
+checkpoint
+*.png
